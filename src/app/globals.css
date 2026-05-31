@@ -1,0 +1,124 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Options First — design tokens.
+ * Every color is an HSL triplet so Tailwind's <alpha-value> works.
+ * The whole surface re-themes by flipping [data-theme] on <html>.
+ */
+:root {
+  --font-sans: "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
+}
+
+:root,
+[data-theme="light"] {
+  --bg: 210 20% 98%;
+  --bg-elev: 0 0% 100%;
+  --bg-sunken: 210 24% 95.5%;
+  --panel: 0 0% 100%;
+  --panel-2: 210 22% 98.4%;
+  --border: 214 22% 90%;
+  --border-strong: 214 18% 81%;
+  --fg: 222 32% 12%;
+  --fg-muted: 218 12% 40%;
+  --fg-subtle: 218 10% 55%;
+  --brand: 221 83% 53%;
+  --brand-soft: 221 90% 95%;
+  --call: 152 64% 38%;
+  --call-soft: 152 52% 92%;
+  --put: 6 76% 55%;
+  --put-soft: 6 80% 95%;
+  --warn: 33 92% 48%;
+  --info: 199 89% 45%;
+  --sim: 270 62% 56%;
+  --shadow: 220 45% 22%;
+}
+
+[data-theme="dark"] {
+  --bg: 222 30% 8%;
+  --bg-elev: 222 26% 11%;
+  --bg-sunken: 224 34% 6%;
+  --panel: 222 24% 12%;
+  --panel-2: 222 21% 15.5%;
+  --border: 220 16% 22%;
+  --border-strong: 220 14% 31%;
+  --fg: 210 30% 96%;
+  --fg-muted: 215 16% 67%;
+  --fg-subtle: 215 13% 50%;
+  --brand: 217 91% 66%;
+  --brand-soft: 217 48% 21%;
+  --call: 152 56% 50%;
+  --call-soft: 152 38% 17%;
+  --put: 6 84% 65%;
+  --put-soft: 6 52% 20%;
+  --warn: 36 96% 58%;
+  --info: 199 89% 60%;
+  --sim: 270 82% 74%;
+  --shadow: 0 0% 0%;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  background-color: hsl(var(--bg));
+  color: hsl(var(--fg));
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01";
+}
+
+/* Tabular numbers everywhere price/greeks render, so columns never jitter. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Quiet, native-feeling scrollbars. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border-strong));
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--fg-subtle));
+  background-clip: content-box;
+}
+
+@layer components {
+  .card {
+    @apply rounded-xl border border-border bg-panel shadow-card;
+  }
+  .card-pad {
+    @apply p-4;
+  }
+  .panel-title {
+    @apply text-[13px] font-semibold tracking-tight text-fg;
+  }
+  .label-eyebrow {
+    @apply text-2xs font-semibold uppercase tracking-[0.07em] text-fg-subtle;
+  }
+  .hairline {
+    @apply border-t border-border;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-2xs font-medium;
+  }
+  .focus-ring {
+    @apply outline-none ring-brand/50 focus-visible:ring-2;
+  }
+}
