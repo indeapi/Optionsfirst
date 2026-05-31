@@ -31,6 +31,8 @@ export interface Provenance {
   asOf: number;
   /** Convenience flag mirroring mode === 'simulated'. Drives the ★ marker. */
   simulated: boolean;
+  /** Real value from a point-in-time broker capture (not a live stream). */
+  captured?: boolean;
   /** Short human label, e.g. "KITE · delayed 3m" or "Simulated ★". */
   label: string;
 }
@@ -109,6 +111,13 @@ export interface OptionChain {
   atmStrike: number;
   /** When this snapshot object was assembled (epoch ms). */
   builtAt: number;
+  /** Present when anchored to a real captured/live feed (e.g. IBKR). */
+  live?: {
+    source: DataSource;
+    capturedAt: number;
+    ivRank: number;
+    ivPercentile: number;
+  };
 }
 
 /** Aggregate positioning analytics derived from the chain. */

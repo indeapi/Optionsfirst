@@ -20,11 +20,13 @@ export function compact(n: number, region: "IN" | "US" = "US"): string {
   return `${Math.round(n)}`;
 }
 
-export function currencySymbol(ccy: "INR" | "USD"): string {
-  return ccy === "INR" ? "₹" : "$";
+export type Currency = "INR" | "USD" | "EUR";
+
+export function currencySymbol(ccy: Currency): string {
+  return ccy === "INR" ? "₹" : ccy === "EUR" ? "€" : "$";
 }
 
-export function money(v: number, ccy: "INR" | "USD", dp = 2): string {
+export function money(v: number, ccy: Currency, dp = 2): string {
   const s = v < 0 ? "-" : "";
   return `${s}${currencySymbol(ccy)}${Math.abs(v).toLocaleString(undefined, {
     minimumFractionDigits: dp,

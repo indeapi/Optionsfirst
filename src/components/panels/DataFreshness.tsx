@@ -57,18 +57,25 @@ export function DataSourcePanel({ chain }: { chain: OptionChain }) {
         <div
           className={cn(
             "flex items-start gap-2.5 rounded-lg border p-2.5",
-            regionStatus.connected ? "border-call/30 bg-call/[0.06]" : "border-sim/30 bg-sim/[0.06]",
+            regionStatus.mode === "live"
+              ? "border-call/30 bg-call/[0.06]"
+              : regionStatus.mode === "captured"
+                ? "border-info/30 bg-info/[0.06]"
+                : "border-sim/30 bg-sim/[0.06]",
           )}
         >
           <Icon
-            name={regionStatus.connected ? "signal" : "star"}
+            name={regionStatus.mode === "live" ? "signal" : regionStatus.mode === "captured" ? "clock" : "star"}
             size={15}
-            className={cn("mt-0.5", regionStatus.connected ? "text-call" : "text-sim")}
+            className={cn(
+              "mt-0.5",
+              regionStatus.mode === "live" ? "text-call" : regionStatus.mode === "captured" ? "text-info" : "text-sim",
+            )}
           />
           <div className="min-w-0">
             <div className="text-2xs font-semibold text-fg">
               {regionStatus.source} · {regionStatus.region} feed —{" "}
-              {regionStatus.connected ? "live" : "simulated ★"}
+              {regionStatus.mode === "live" ? "live" : regionStatus.mode === "captured" ? "captured (real)" : "simulated ★"}
             </div>
             <p className="mt-0.5 text-2xs text-fg-muted">{regionStatus.message}</p>
             <p className="mt-0.5 text-2xs text-fg-subtle">{regionStatus.howToConnect}</p>

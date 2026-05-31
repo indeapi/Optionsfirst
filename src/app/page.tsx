@@ -17,6 +17,7 @@ import { VolSmileChart } from "@/components/charts/VolSmileChart";
 import { StrategyRankList } from "@/components/panels/StrategyRank";
 import { PositionsMonitor } from "@/components/panels/PositionsMonitor";
 import { FxStrip, RemittanceAlerts } from "@/components/panels/ForexPanel";
+import { IbkrAccountPanel, CrossBorderExposure } from "@/components/panels/AccountPanel";
 
 export default function DashboardPage() {
   const { snapshot, agents, marks, remittance, loading } = useMarket();
@@ -45,6 +46,15 @@ export default function DashboardPage() {
         <MarketHeader snapshot={snapshot} />
 
         <HermesBrief result={agents} />
+
+        <div className="grid gap-3 lg:grid-cols-3">
+          <Panel className="lg:col-span-2" eyebrow="Interactive Brokers · real" title="Account & holdings">
+            <IbkrAccountPanel />
+          </Panel>
+          <Panel eyebrow="Cross-border" title="USD ↔ EUR exposure" right={<AgentBadge id="plutus" />}>
+            <CrossBorderExposure />
+          </Panel>
+        </div>
 
         <div className="grid gap-3 lg:grid-cols-3">
           <Panel

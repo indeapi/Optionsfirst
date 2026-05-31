@@ -41,7 +41,9 @@ export function runHermes(
 
   // ---- Iris: data integrity & freshness ----
   const fresh = chain.freshness;
+  const live = chain.live;
   const simCount = Object.values(fresh).filter((p) => p?.simulated).length;
+  const capturedCount = Object.values(fresh).filter((p) => p?.captured).length;
   const oiProv = fresh.oi;
   const oiCadence =
     chain.instrument.region === "IN"
@@ -51,12 +53,22 @@ export function runHermes(
     agent: "iris",
     action: `Audited provenance on ${Object.keys(fresh).length} fields`,
     inputs: ["broker feed", "field timestamps"],
-    outputs: ["delay map", `${simCount} ★ simulated`],
-    status: simCount > 0 ? "degraded" : "ok",
-    note: `${oiCadence}. ${simCount > 0 ? "Live feed not attached — values ★ simulated." : "All fields live."}`,
+    outputs: live ? [`${capturedCount} real`, `${simCount} ★ modelled`] : ["delay map", `${simCount} ★ simulated`],
+    status: live ? "ok" : simCount > 0 ? "degraded" : "ok",
+    note: live
+      ? `Anchored to real ${live.source} capture; ${oiCadence}. Per-strike quotes modelled.`
+      : `${oiCadence}. ${simCount > 0 ? "Live feed not attached — values ★ simulated." : "All fields live."}`,
     ms: 8,
   });
-  if (simCount > 0) {
+  if (live) {
+    findings.push({
+      agent: "iris",
+      severity: "positive",
+      title: `Live ${live.source} capture`,
+      detail: `Spot, implied vol, IV-rank and aggregate OI/PCR are real ${live.source} values (last close). Per-strike OI split and option quotes are modelled ★ — per-contract data isn't exposed by the connector. ${oiCadence}.`,
+      metric: `${capturedCount} real`,
+    });
+  } else if (simCount > 0) {
     findings.push({
       agent: "iris",
       severity: "watch",
@@ -203,15 +215,20 @@ export function runHermes(
 
   // ---- Hermes: compose the brief ----
   const dir = condition.direction;
+  const caveat = live
+    ? `Spot, IV, OI & account are real ${live.source} values (last close); per-strike quotes are modelled ★.`
+    : simCount > 0
+      ? "All figures are ★ simulated — attach the live feed before trading."
+      : "";
   const brief = top
-    ? `${chain.instrument.symbol} reads ${dir} with ${condition.ivRegime} IV (rank ${(analytics.ivRank * 100).toFixed(0)}) and a ±${analytics.expectedMovePct.toFixed(1)}% expected move into ${dte}d. PCR ${analytics.pcr.toFixed(2)}, max-pain ${lvl(chain, analytics.maxPain)}. Athena's lead structure is the ${top.meta.name} (${top.score}/100). ${simCount > 0 ? "All figures are ★ simulated — attach the live feed before trading." : ""}`.trim()
+    ? `${chain.instrument.symbol} reads ${dir} with ${condition.ivRegime} IV (rank ${(analytics.ivRank * 100).toFixed(0)}) and a ±${analytics.expectedMovePct.toFixed(1)}% expected move into ${dte}d. PCR ${analytics.pcr.toFixed(2)}, max-pain ${lvl(chain, analytics.maxPain)}. Athena's lead structure is the ${top.meta.name} (${top.score}/100). ${caveat}`.trim()
     : `${chain.instrument.symbol}: insufficient chain to brief.`;
   steps.push({
     agent: "hermes",
     action: "Reconciled 6 specialist reports into the desk brief",
     inputs: ["Iris", "Argus", "Helios", "Athena", "Plutus", "Nike"],
     outputs: ["desk brief", `${findings.length} findings`],
-    status: simCount > 0 ? "degraded" : "ok",
+    status: live ? "ok" : simCount > 0 ? "degraded" : "ok",
     note: "Brief composed.",
     ms: 5,
   });

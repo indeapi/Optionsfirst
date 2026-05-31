@@ -29,13 +29,14 @@ const IN_SEEDS: InstrumentSeed[] = [
   mk("RELIANCE", "Reliance Industries", "equity", 500, "INR", 1462, 0.224, 10, 0.07),
 ];
 
+// Reference spot / IV seeded from the real IBKR capture (2026-05-31 close).
 const US_SEEDS: InstrumentSeed[] = [
-  mk("SPX", "S&P 500 Index", "index", 100, "USD", 5912, 0.158, 25, 0.04),
-  mk("SPY", "SPDR S&P 500 ETF", "etf", 100, "USD", 590.4, 0.149, 1, 0.04),
-  mk("QQQ", "Invesco QQQ Trust", "etf", 100, "USD", 511.2, 0.198, 1, 0.05),
-  mk("AAPL", "Apple Inc.", "equity", 100, "USD", 229.6, 0.276, 2.5, 0.09),
-  mk("NVDA", "NVIDIA Corp.", "equity", 100, "USD", 134.8, 0.452, 2.5, 0.11),
-  mk("TSLA", "Tesla Inc.", "equity", 100, "USD", 348.5, 0.552, 5, 0.13),
+  mk("SPX", "S&P 500 Index", "index", 100, "USD", 7581.25, 0.1237, 25, 0.04),
+  mk("SPY", "SPDR S&P 500 ETF", "etf", 100, "USD", 754.6, 0.1253, 1, 0.04),
+  mk("QQQ", "Invesco QQQ Trust", "etf", 100, "USD", 735.6, 0.1977, 1, 0.05),
+  mk("AAPL", "Apple Inc.", "equity", 100, "USD", 312.51, 0.2115, 5, 0.07),
+  mk("NVDA", "NVIDIA Corp.", "equity", 100, "USD", 214.25, 0.3929, 2.5, 0.09),
+  mk("TSLA", "Tesla Inc.", "equity", 100, "USD", 442.1, 0.4114, 5, 0.11),
 ];
 
 function mk(

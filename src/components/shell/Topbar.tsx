@@ -38,6 +38,10 @@ export function Topbar() {
               <span className="chip bg-sim/15 text-sim">
                 <Icon name="star" size={9} strokeWidth={2.5} /> SIM
               </span>
+            ) : chain.freshness.spot?.captured ? (
+              <span className="chip bg-info/15 text-info">
+                <Icon name="clock" size={9} strokeWidth={2.5} /> IBKR
+              </span>
             ) : null}
           </div>
         ) : (
@@ -47,26 +51,32 @@ export function Topbar() {
 
       <div className="flex items-center gap-2">
         <div className="hidden items-center gap-1.5 md:flex">
-          {statuses.map((s) => (
-            <span
-              key={s.source}
-              title={`${s.message} — ${s.howToConnect}`}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-2xs font-medium",
-                s.connected
-                  ? "border-call/30 bg-call/10 text-call"
-                  : "border-sim/30 bg-sim/10 text-sim",
-              )}
-            >
-              {s.connected ? (
-                <span className="h-1.5 w-1.5 rounded-full bg-call" />
-              ) : (
-                <Icon name="star" size={9} strokeWidth={2.5} />
-              )}
-              {s.source}
-              <span className="opacity-70">{s.connected ? "LIVE" : "SIM"}</span>
-            </span>
-          ))}
+          {statuses.map((s) => {
+            const pill =
+              s.mode === "live"
+                ? { cls: "border-call/30 bg-call/10 text-call", label: "LIVE", icon: "signal" }
+                : s.mode === "captured"
+                  ? { cls: "border-info/30 bg-info/10 text-info", label: "REAL", icon: "clock" }
+                  : { cls: "border-sim/30 bg-sim/10 text-sim", label: "SIM", icon: "star" };
+            return (
+              <span
+                key={s.source}
+                title={`${s.message} — ${s.howToConnect}`}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-2xs font-medium",
+                  pill.cls,
+                )}
+              >
+                {s.mode === "live" ? (
+                  <span className="h-1.5 w-1.5 rounded-full bg-call" />
+                ) : (
+                  <Icon name={pill.icon} size={9} strokeWidth={2.5} />
+                )}
+                {s.source}
+                <span className="opacity-70">{pill.label}</span>
+              </span>
+            );
+          })}
         </div>
 
         <span className="hidden items-center gap-1.5 rounded-lg border border-border bg-panel px-2 py-1 text-2xs text-fg-muted lg:inline-flex">

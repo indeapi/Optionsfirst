@@ -13,6 +13,7 @@
 import { bsGreeks, bsPrice } from "@/lib/quant/blackScholes";
 import { getProvenance } from "./freshness";
 import { daysToExpiry, type InstrumentSeed } from "./instruments";
+import { IBKR_CAPTURED_AT, type IbkrUnderlying } from "./live/ibkrCapture";
 import type { OptionChain, OptionChainRow, OptionQuote, TrackedField } from "./types";
 
 // ---- deterministic PRNG ----------------------------------------------------
@@ -164,54 +165,115 @@ function roundTo(x: number, step: number): number {
   return Math.round(x / step) * step;
 }
 
-/** Build a full simulated option chain for an instrument + expiry. */
-export function buildSimulatedChain(
+/**
+ * Build a full option chain for an instrument + expiry.
+ *
+ * With an `anchor` (real IBKR capture) the chain is pinned to reality: real
+ * spot, real underlying IV, and per-strike OI scaled so the call/put totals
+ * match the real aggregate OI exactly (→ real PCR). Per-strike prices/greeks
+ * are then computed from those real inputs; bid/ask and per-strike volume stay
+ * modelled. Without an anchor everything is simulated ★ and the spot walks.
+ */
+export function buildChain(
   seed: InstrumentSeed,
   expiry: string,
   now = Date.now(),
+  anchor?: IbkrUnderlying,
 ): OptionChain {
-  const walk = advanceSpot(seed, now);
-  const spot = walk.spot;
+  let spot: number;
+  let prevClose: number;
+  let baseIV: number;
+  if (anchor) {
+    spot = anchor.spot;
+    prevClose = anchor.priorClose;
+    baseIV = anchor.underlyingIV;
+  } else {
+    const walk = advanceSpot(seed, now);
+    spot = walk.spot;
+    prevClose = walk.prevClose;
+    baseIV = seed.baseIV;
+  }
+  const wseed: InstrumentSeed = anchor ? { ...seed, baseIV } : seed;
   const dte = daysToExpiry(expiry, now);
   const t = Math.max(0.5 / 365, dte / 365);
-  const iv = seed.baseIV;
-  const { strikes, atm, expMove } = strikeRange(spot, seed.strikeStep, iv, t);
+  const { strikes, atm, expMove } = strikeRange(spot, seed.strikeStep, baseIV, t);
 
   const rows: OptionChainRow[] = strikes.map((strike) => {
     const r = rng(`${seed.symbol}:${expiry}:${strike}:${todayKey(now)}`);
     return {
       strike,
-      call: quote(seed, strike, "CE", spot, atm, t, expMove, r),
-      put: quote(seed, strike, "PE", spot, atm, t, expMove, r),
+      call: quote(wseed, strike, "CE", spot, atm, t, expMove, r),
+      put: quote(wseed, strike, "PE", spot, atm, t, expMove, r),
     };
   });
+  if (anchor) scaleOIToReal(rows, anchor.callOI, anchor.putOI);
 
-  const fields: TrackedField[] = [
-    "ltp",
-    "bidAsk",
-    "volume",
-    "oi",
-    "iv",
-    "greeks",
-    "spot",
-    "pcr",
-    "maxPain",
-  ];
-  const freshness = Object.fromEntries(
-    fields.map((f) => [f, getProvenance(seed.region, f, { simulated: true, asOf: now })]),
-  ) as OptionChain["freshness"];
-
-  const spotChange = spot - walk.prevClose;
-
-  return {
+  const spotChange = anchor ? anchor.change : spot - prevClose;
+  const chain: OptionChain = {
     instrument: { ...seed, expiries: [expiry] },
     expiry,
     spot,
     spotChange,
-    spotChangePct: (spotChange / walk.prevClose) * 100,
+    spotChangePct: anchor ? anchor.changePct : (spotChange / prevClose) * 100,
     rows,
-    freshness,
+    freshness: buildFreshness(seed.region, now, anchor),
     atmStrike: atm,
     builtAt: now,
   };
+  if (anchor) {
+    chain.live = {
+      source: "IBKR",
+      capturedAt: IBKR_CAPTURED_AT,
+      ivRank: anchor.ivPercentile,
+      ivPercentile: anchor.ivPercentile,
+    };
+  }
+  return chain;
+}
+
+/** Back-compat alias. */
+export const buildSimulatedChain = buildChain;
+
+/** Scale modelled per-strike OI so the call/put totals match the real feed. */
+function scaleOIToReal(rows: OptionChainRow[], callTotal: number, putTotal: number) {
+  const sc = rows.reduce((a, r) => a + r.call.oi, 0) || 1;
+  const sp = rows.reduce((a, r) => a + r.put.oi, 0) || 1;
+  const fc = callTotal / sc;
+  const fp = putTotal / sp;
+  for (const r of rows) {
+    r.call.oi = Math.round(r.call.oi * fc);
+    r.call.oiChange = Math.round(r.call.oiChange * fc);
+    r.put.oi = Math.round(r.put.oi * fp);
+    r.put.oiChange = Math.round(r.put.oiChange * fp);
+  }
+}
+
+/**
+ * Per-field provenance. Anchored (real IBKR) chains mark spot / IV / OI / PCR
+ * as captured-real, prices/greeks/max-pain as computed-from-real, and only
+ * bid-ask + per-strike volume as ★ modelled. Un-anchored chains are all ★.
+ */
+function buildFreshness(
+  region: OptionChain["instrument"]["region"],
+  now: number,
+  anchor?: IbkrUnderlying,
+): OptionChain["freshness"] {
+  const fields: TrackedField[] = [
+    "ltp", "bidAsk", "volume", "oi", "iv", "greeks", "spot", "pcr", "maxPain",
+  ];
+  const captured = new Set<TrackedField>(["spot", "iv", "oi", "pcr"]);
+  const computed = new Set<TrackedField>(["ltp", "greeks", "maxPain"]);
+  const out: OptionChain["freshness"] = {};
+  for (const f of fields) {
+    if (!anchor) {
+      out[f] = getProvenance(region, f, { simulated: true, asOf: now });
+    } else if (captured.has(f)) {
+      out[f] = getProvenance(region, f, { simulated: false, captured: true, asOf: IBKR_CAPTURED_AT });
+    } else if (computed.has(f)) {
+      out[f] = getProvenance(region, f, { simulated: false, computed: true, asOf: now });
+    } else {
+      out[f] = getProvenance(region, f, { simulated: true, asOf: now });
+    }
+  }
+  return out;
 }

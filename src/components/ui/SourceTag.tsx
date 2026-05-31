@@ -57,8 +57,9 @@ export function SourceTag({
   now?: number;
   className?: string;
 }) {
-  const tone = MODE_TONE[prov.mode];
-  const delay = prov.delaySec > 0 ? ` ${formatDelay(prov.delaySec)}` : "";
+  const tone: Tone = prov.captured ? "info" : MODE_TONE[prov.mode];
+  const modeText = prov.captured ? "captured" : MODE_TEXT[prov.mode];
+  const delay = !prov.captured && prov.delaySec > 0 ? ` ${formatDelay(prov.delaySec)}` : "";
   const sourceText = prov.simulated ? "SIM" : prov.source;
   return (
     <span
@@ -67,15 +68,17 @@ export function SourceTag({
         TONE_CLASS[tone],
         className,
       )}
-      title={`${prov.label} · ${MODE_TEXT[prov.mode]}${delay}`}
+      title={`${prov.label} · ${modeText}${delay}`}
     >
       {prov.simulated ? (
         <Icon name="star" size={10} strokeWidth={2.5} />
+      ) : prov.captured ? (
+        <Icon name="clock" size={10} strokeWidth={2.5} />
       ) : (
         <span className={cn("h-1.5 w-1.5 rounded-full", DOT_CLASS[tone])} />
       )}
       <span>
-        {sourceText} · {MODE_TEXT[prov.mode]}
+        {sourceText} · {modeText}
         {delay}
       </span>
       {showAge && now ? (

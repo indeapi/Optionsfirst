@@ -1,0 +1,9 @@
+{
+  "$comment": "MCP servers for the Options First analytics workspace (Claude Code session tools, NOT the runtime web app). Kite requires interactive OAuth login at first use. IBKR is provided by the hosting session. To wire the *web app* to live data instead, set the broker env vars (see README) so the server-side adapters connect directly.",
+  "mcpServers": {
+    "kite": {
+      "command": "npx",
+      "args": ["mcp-remote", "https://mcp.kite.trade/mcp"]
+    }
+  }
+}

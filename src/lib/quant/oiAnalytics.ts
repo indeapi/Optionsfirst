@@ -66,7 +66,11 @@ export function analyzeChain(chain: OptionChain): ChainAnalytics {
     chain.rows[Math.floor(chain.rows.length / 2)];
   const atmStraddle = atmRow.call.ltp + atmRow.put.ltp;
   const atmIV = (atmRow.call.iv + atmRow.put.iv) / 2;
-  const { ivRank, ivPercentile } = ivStats(atmIV, chain.instrument.region);
+  // Anchored chains carry a real IV percentile from the broker feed; otherwise
+  // we normalise ATM IV against a regional band as a stand-in.
+  const { ivRank, ivPercentile } = chain.live
+    ? { ivRank: chain.live.ivRank, ivPercentile: chain.live.ivPercentile }
+    : ivStats(atmIV, chain.instrument.region);
 
   return {
     pcr: totalCallOI > 0 ? totalPutOI / totalCallOI : 0,

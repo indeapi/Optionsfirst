@@ -65,11 +65,19 @@ export default function SettingsPage() {
                   </div>
                   <span
                     className={`inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-2xs font-medium ${
-                      s.connected ? "border-call/30 bg-call/10 text-call" : "border-sim/30 bg-sim/10 text-sim"
+                      s.mode === "live"
+                        ? "border-call/30 bg-call/10 text-call"
+                        : s.mode === "captured"
+                          ? "border-info/30 bg-info/10 text-info"
+                          : "border-sim/30 bg-sim/10 text-sim"
                     }`}
                   >
-                    {s.connected ? <span className="h-1.5 w-1.5 rounded-full bg-call" /> : <Icon name="star" size={9} strokeWidth={2.5} />}
-                    {s.connected ? "LIVE" : "SIM"}
+                    {s.mode === "live" ? (
+                      <span className="h-1.5 w-1.5 rounded-full bg-call" />
+                    ) : (
+                      <Icon name={s.mode === "captured" ? "clock" : "star"} size={9} strokeWidth={2.5} />
+                    )}
+                    {s.mode === "live" ? "LIVE" : s.mode === "captured" ? "REAL" : "SIM"}
                   </span>
                 </div>
                 <p className="mt-2 text-2xs text-fg-muted">{s.message}</p>

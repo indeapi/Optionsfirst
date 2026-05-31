@@ -7,6 +7,7 @@ import { LoadingGrid } from "@/components/ui/Loading";
 import { AgentBadge } from "@/components/ui/AgentBadge";
 import { Icon } from "@/components/ui/Icon";
 import { FxStrip, RemittanceAlerts } from "@/components/panels/ForexPanel";
+import { IbkrAccountPanel, CrossBorderExposure } from "@/components/panels/AccountPanel";
 
 const EDGES = [
   {
@@ -51,6 +52,15 @@ export default function CrossBorderPage() {
         <Panel eyebrow="Rates" title="FX — live vs 30-day average">
           <FxStrip />
         </Panel>
+
+        <div className="grid gap-3 lg:grid-cols-3">
+          <Panel className="lg:col-span-2" eyebrow="Interactive Brokers · real" title="Your account & holdings">
+            <IbkrAccountPanel />
+          </Panel>
+          <Panel eyebrow="Exposure" title="USD ↔ EUR" right={<AgentBadge id="plutus" />}>
+            <CrossBorderExposure />
+          </Panel>
+        </div>
 
         <div className="grid gap-3 lg:grid-cols-3">
           <Panel className="lg:col-span-2" eyebrow="Windows" title="Remittance & currency-benefit alerts">

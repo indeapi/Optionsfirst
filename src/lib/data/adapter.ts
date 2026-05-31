@@ -1,11 +1,12 @@
 /**
  * Broker adapter contract.
  *
- * The whole platform talks to this interface, never to a broker directly. Today
- * the simulated adapter backs both regions; wiring a live feed means filling in
- * the two real adapters below and flipping `connected` — nothing upstream
- * changes. The integration points (REST + streaming) are documented inline so
- * "add it if not available" is a fill-in-the-blanks job, not a rewrite.
+ * The whole platform talks to this interface, never to a broker directly.
+ *  - IBKR (US): backed by a real captured snapshot (account, spot, IV, IV-rank
+ *    and aggregate OI pulled from the live connector); a runtime gateway
+ *    (IBKR_GATEWAY_BASE_URL) supersedes it and streams.
+ *  - Kite (India): simulated ★ until a Kite Connect key/token is supplied (the
+ *    app's runtime path) — the Kite MCP wires the *workspace*, not the web app.
  */
 
 import type {
@@ -15,18 +16,16 @@ import type {
   OptionChain,
 } from "./types";
 import { INSTRUMENT_SEEDS, getSeed, upcomingExpiries } from "./instruments";
-import { buildSimulatedChain } from "./simulated";
+import { buildChain } from "./simulated";
+import { getUsAnchor } from "./live/ibkrCapture";
 
 export interface BrokerStatus {
   source: DataSource;
   region: MarketRegion;
   connected: boolean;
-  mode: "live" | "simulated";
-  /** Round-trip latency to the feed, when connected. */
+  mode: "live" | "captured" | "simulated";
   latencyMs?: number;
-  /** Human status line for the data-source panel. */
   message: string;
-  /** What the trader must do to go live. */
   howToConnect: string;
 }
 
@@ -35,102 +34,93 @@ export interface MarketDataAdapter {
   readonly region: MarketRegion;
   status(): BrokerStatus;
   listInstruments(now?: number): Instrument[];
-  /** Returns a chain; simulated adapters stamp every field SIMULATED (★). */
   getOptionChain(symbol: string, expiry: string, now?: number): OptionChain;
 }
 
-/** Shared simulated backing used until a live key is attached. */
-class SimulatedBacking {
-  listInstruments(region: MarketRegion, now = Date.now()): Instrument[] {
-    return INSTRUMENT_SEEDS.filter((s) => s.region === region).map((s) => ({
-      symbol: s.symbol,
-      name: s.name,
-      region: s.region,
-      kind: s.kind,
-      lotSize: s.lotSize,
-      currency: s.currency,
-      feed: s.feed,
-      expiries: upcomingExpiries(s, now),
-    }));
-  }
-  getOptionChain(symbol: string, expiry: string, now = Date.now()): OptionChain {
-    const seed = getSeed(symbol);
-    if (!seed) throw new Error(`Unknown instrument: ${symbol}`);
-    return buildSimulatedChain(seed, expiry, now);
-  }
+function instrumentsFor(region: MarketRegion, now = Date.now()): Instrument[] {
+  return INSTRUMENT_SEEDS.filter((s) => s.region === region).map((s) => ({
+    symbol: s.symbol,
+    name: s.name,
+    region: s.region,
+    kind: s.kind,
+    lotSize: s.lotSize,
+    currency: s.currency,
+    feed: s.feed,
+    expiries: upcomingExpiries(s, now),
+  }));
 }
 
-const backing = new SimulatedBacking();
-
 /**
- * Zerodha Kite (India / NSE). Live wiring:
- *   - Auth: Kite Connect API key + access token (daily login flow).
- *   - Instruments: GET /instruments (CSV dump), cache the option contracts.
- *   - Quotes/LTP/Greeks inputs: WebSocket (kiteticker) full-mode packets.
- *   - Open Interest: present in full-mode packets but NSE refreshes it on a
- *     ~3-minute cycle (see freshness.ts) — surface that delay, don't hide it.
+ * Zerodha Kite (India / NSE). Live wiring (web app runtime):
+ *   - Auth: Kite Connect API key + daily access token.
+ *   - Instruments: GET /instruments; cache option contracts.
+ *   - Quotes/LTP/greeks inputs: kiteticker WebSocket (full mode).
+ *   - Open Interest: present but NSE refreshes it on a ~3-min cycle.
  */
 export class KiteAdapter implements MarketDataAdapter {
   readonly source: DataSource = "KITE";
   readonly region: MarketRegion = "IN";
-  private apiKey = process.env.KITE_API_KEY ?? "";
 
   status(): BrokerStatus {
-    const connected = Boolean(this.apiKey && process.env.KITE_ACCESS_TOKEN);
+    const connected = Boolean(process.env.KITE_API_KEY && process.env.KITE_ACCESS_TOKEN);
     return {
       source: "KITE",
       region: "IN",
       connected,
       mode: connected ? "live" : "simulated",
       message: connected
-        ? "Kite Connect streaming — NSE F&O live."
-        : "No Kite access token — serving the simulated NSE book. All values ★.",
+        ? "Kite Connect streaming — NSE F&O live (OI ~3 min)."
+        : "No Kite session — the NSE book is simulated ★.",
       howToConnect:
-        "Set KITE_API_KEY + KITE_ACCESS_TOKEN, then the adapter streams via kiteticker (LTP live, OI ~3 min).",
+        "Workspace: add the Kite MCP (mcp.kite.trade) and complete the Kite login. Web app: set KITE_API_KEY + KITE_ACCESS_TOKEN to stream via kiteticker (LTP live, OI ~3 min).",
     };
   }
+
   listInstruments(now?: number): Instrument[] {
-    return backing.listInstruments("IN", now);
+    return instrumentsFor("IN", now);
   }
-  getOptionChain(symbol: string, expiry: string, now?: number): OptionChain {
-    // Live path: assemble from cached instruments + latest ticker packets.
-    return backing.getOptionChain(symbol, expiry, now);
+
+  getOptionChain(symbol: string, expiry: string, now = Date.now()): OptionChain {
+    const seed = getSeed(symbol);
+    if (!seed) throw new Error(`Unknown instrument: ${symbol}`);
+    return buildChain(seed, expiry, now); // no anchor → simulated ★
   }
 }
 
 /**
- * Interactive Brokers (US / OPRA). Live wiring:
- *   - Auth: TWS / IB Gateway socket, or the Client Portal Web API session.
- *   - Instruments: secDefOptParams to enumerate strikes/expiries per underlying.
- *   - Quotes/Greeks: reqMktData (NBBO + IB model greeks) with an OPRA
- *     market-data subscription; without one, quotes are 15-min delayed.
- *   - Open Interest: NOT live intraday on US options — it's an OCC end-of-day
- *     figure published next morning (see freshness.ts). Pull from reqMktData
- *     generic tick 101 after settlement, not during the session.
+ * Interactive Brokers (US / OPRA).
+ *   - Connected here via a real captured snapshot (account, positions, spot,
+ *     IV, IV-percentile and aggregate option OI) pulled from the live feed.
+ *   - Per-contract option conids aren't exposed by the connector, so per-strike
+ *     OI is modelled to the real aggregate (US OI is end-of-day anyway).
+ *   - Runtime gateway (IBKR_GATEWAY_BASE_URL) streams intraday when present.
  */
 export class IBKRAdapter implements MarketDataAdapter {
   readonly source: DataSource = "IBKR";
   readonly region: MarketRegion = "US";
-  private host = process.env.IBKR_GATEWAY_HOST ?? "";
 
   status(): BrokerStatus {
-    const connected = Boolean(this.host);
+    const hasGateway = Boolean(process.env.IBKR_GATEWAY_BASE_URL);
     return {
       source: "IBKR",
       region: "US",
-      connected,
-      mode: connected ? "live" : "simulated",
-      message: connected
-        ? "IBKR Gateway connected — OPRA NBBO live, OI end-of-day."
-        : "No IBKR gateway — serving the simulated OPRA book. All values ★.",
+      connected: true,
+      mode: hasGateway ? "live" : "captured",
+      message: hasGateway
+        ? "IBKR gateway streaming — OPRA NBBO live, OI end-of-day."
+        : "Live IBKR capture — real spot, IV, IV-rank, account & aggregate OI (last close). Per-strike split modelled ★.",
       howToConnect:
-        "Run IB Gateway and set IBKR_GATEWAY_HOST/PORT. Quotes need an OPRA subscription; OI stays end-of-day by design.",
+        "Set IBKR_GATEWAY_BASE_URL (Client Portal Web API / IB Gateway) to stream intraday. Per-strike OI stays end-of-day by design (OCC).",
     };
   }
+
   listInstruments(now?: number): Instrument[] {
-    return backing.listInstruments("US", now);
+    return instrumentsFor("US", now);
   }
-  getOptionChain(symbol: string, expiry: string, now?: number): OptionChain {
-    return backing.getOptionChain(symbol, expiry, now);
+
+  getOptionChain(symbol: string, expiry: string, now = Date.now()): OptionChain {
+    const seed = getSeed(symbol);
+    if (!seed) throw new Error(`Unknown instrument: ${symbol}`);
+    return buildChain(seed, expiry, now, getUsAnchor(symbol));
   }
 }

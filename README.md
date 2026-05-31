@@ -4,7 +4,7 @@
 
 A clean, fast options-analytics terminal: world-class Open-Interest visualisation, straddle / payoff / IV-skew charts, strategies ranked to the live tape, and the **Hermes multi-agent desk** that produces — and explains — every number. Built so the trader always knows the *real* delay on each datapoint, with a **★ on anything simulated**.
 
-> Data is simulated by a deterministic engine until live broker keys are attached. Every simulated value is marked with a ★ and carries the delay its real feed would have. Nothing here is investment advice.
+> **US (IBKR) is connected with real captured data** — account, positions, spot, implied vol, IV-rank and aggregate option OI/PCR are genuine Interactive Brokers values. India (Kite) is simulated ★ until a Kite session is attached. Every value carries its real source/delay; anything modelled is marked ★. Nothing here is investment advice.
 
 ---
 
@@ -63,21 +63,41 @@ pnpm build && pnpm start   # production
 
 Requires Node 18+.
 
-### Connect live brokers
+### Data tiers
 
-The platform talks only to a broker-adapter interface (`src/lib/data/adapter.ts`); the simulated engine backs both regions until you attach keys. Integration points are documented inline.
+The platform talks only to a broker-adapter interface (`src/lib/data/adapter.ts`). Every field is one of three tiers, shown in the UI by its source pill:
+
+| Tier | Pill | Meaning |
+|------|------|---------|
+| **LIVE** | green | Streaming from a runtime broker connection (gateway / Kite key). |
+| **REAL — captured** | blue ⏱ | Genuine broker values from a point-in-time snapshot (current US/IBKR state). |
+| **SIMULATED ★** | purple ★ | Modelled by the deterministic engine (current India state, and per-strike US quotes). |
+
+What's real **right now** (US, from the IBKR capture in `src/lib/data/live/ibkrCapture.ts`): account, positions, underlying spot, implied vol, 52-week IV percentile (→ IV rank), and **aggregate call/put OI → real PCR**. Modelled ★: the per-strike OI *distribution* (scaled to the real totals) and per-contract bid/ask/volume — per-contract option conids aren't exposed by the connector, and US per-strike OI is end-of-day anyway.
+
+### MCP vs. runtime — important
+
+**MCP servers are tools for the Claude Code agent during a session — the deployed web app cannot call them at runtime.** So "connect" has two layers:
+
+- **Workspace ← brokers (MCP):** IBKR is provided by the session; Kite is added via `.mcp.json` (below) and needs an interactive Kite OAuth login. This is how the *agent* pulls live data (e.g. to refresh the capture).
+- **Web app ← brokers (runtime):** the app's server needs broker credentials directly. Set these to stream:
 
 ```bash
-# Zerodha Kite (India / NSE)
-KITE_API_KEY=...
-KITE_ACCESS_TOKEN=...        # daily login flow; stream via kiteticker (OI ~3 min)
+# Interactive Brokers (US / OPRA) — Client Portal Web API / IB Gateway
+IBKR_GATEWAY_BASE_URL=https://localhost:5000/v1/api   # streams intraday; OI stays EOD by design
 
-# Interactive Brokers (US / OPRA)
-IBKR_GATEWAY_HOST=127.0.0.1  # run IB Gateway / TWS
-IBKR_GATEWAY_PORT=4001       # quotes need an OPRA subscription; OI stays EOD by design
+# Zerodha Kite (India / NSE) — Kite Connect
+KITE_API_KEY=...
+KITE_ACCESS_TOKEN=...        # daily login; stream via kiteticker (LTP live, OI ~3 min)
 ```
 
-When a feed is connected, the source pills flip from **SIM** to **LIVE** and the ★ marks disappear for live fields.
+Kite MCP (workspace) is configured in `.mcp.json`:
+
+```json
+{ "mcpServers": { "kite": { "command": "npx", "args": ["mcp-remote", "https://mcp.kite.trade/mcp"] } } }
+```
+
+When a runtime feed is attached the pills flip to **LIVE** and the ★/captured marks clear for streamed fields.
 
 ---
 

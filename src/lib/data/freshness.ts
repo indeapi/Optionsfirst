@@ -107,7 +107,7 @@ export function getFieldSpec(region: MarketRegion, field: TrackedField): FieldSp
 export function getProvenance(
   region: MarketRegion,
   field: TrackedField,
-  opts: { simulated: boolean; asOf?: number },
+  opts: { simulated: boolean; asOf?: number; captured?: boolean; computed?: boolean },
 ): Provenance {
   const spec = CATALOG[region][field];
   const asOf = opts.asOf ?? Date.now();
@@ -122,6 +122,27 @@ export function getProvenance(
     };
   }
   const source = REAL_FEED_BY_REGION[region];
+  if (opts.computed) {
+    return {
+      source,
+      mode: "computed",
+      delaySec: 0,
+      asOf,
+      simulated: false,
+      label: `${source} · computed`,
+    };
+  }
+  if (opts.captured) {
+    return {
+      source,
+      mode: spec.mode,
+      delaySec: spec.delaySec,
+      asOf,
+      simulated: false,
+      captured: true,
+      label: `${source} · captured`,
+    };
+  }
   return {
     source,
     mode: spec.mode,

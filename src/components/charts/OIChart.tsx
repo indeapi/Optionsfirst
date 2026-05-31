@@ -2,6 +2,7 @@
 
 import type { ChainAnalytics, OptionChain } from "@/lib/data/types";
 import { cn, compact } from "@/lib/utils";
+import { Icon } from "@/components/ui/Icon";
 
 /**
  * Open-Interest bar chart — diverging horizontal bars, strikes down the centre.
@@ -49,6 +50,14 @@ export function OIChart({
           </span>
         </div>
       </div>
+
+      {chain.live ? (
+        <div className="mb-1.5 flex items-center gap-1 text-[10px] leading-tight text-fg-subtle">
+          <Icon name="info" size={11} className="shrink-0 text-info" />
+          Call/put OI totals &amp; PCR are real ({chain.live.source}); the per-strike split is modelled to that real
+          aggregate (per-contract OI isn&apos;t exposed by the feed).
+        </div>
+      ) : null}
 
       <div className="flex flex-col">
         {rows.map((row, i) => {
