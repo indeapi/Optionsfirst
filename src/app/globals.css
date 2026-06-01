@@ -74,6 +74,39 @@ body {
   font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01";
 }
 
+/*
+ * Robinhood-style rich, glossy dark surface: a top-lit sheen fading into a
+ * deep black gradient, with panels treated as glassy plates — a faint top
+ * highlight edge plus elevation shadow give depth when analysing.
+ */
+[data-theme="dark"] body {
+  background:
+    radial-gradient(135% 85% at 50% -6%, hsl(152 24% 13% / 0.42) 0%, transparent 42%),
+    linear-gradient(180deg, hsl(210 14% 8.5%) 0%, hsl(212 16% 5.5%) 55%, hsl(214 20% 3.5%) 100%);
+  background-attachment: fixed;
+}
+
+[data-theme="dark"] .card,
+[data-theme="dark"] .glass {
+  background-image: linear-gradient(
+    180deg,
+    hsl(208 12% 11.5% / 0.92) 0%,
+    hsl(210 13% 8.5% / 0.92) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 0 hsl(0 0% 100% / 0.055),
+    0 1px 2px hsl(0 0% 0% / 0.4),
+    0 10px 30px -14px hsl(0 0% 0% / 0.6);
+  backdrop-filter: blur(6px);
+}
+
+/* Sidebar & top bar pick up the same glassy sheen. */
+[data-theme="dark"] aside,
+[data-theme="dark"] header {
+  background-image: linear-gradient(180deg, hsl(208 13% 9.5% / 0.86), hsl(212 15% 6.5% / 0.86));
+  backdrop-filter: blur(10px);
+}
+
 /* Tabular numbers everywhere price/greeks render, so columns never jitter. */
 .tnum {
   font-variant-numeric: tabular-nums;
