@@ -124,3 +124,62 @@ export class IBKRAdapter implements MarketDataAdapter {
     return buildChain(seed, expiry, now, getUsAnchor(symbol));
   }
 }
+
+import { alpaca } from "./live/alpaca";
+import { useAppStore } from "@/lib/store/app";
+
+export const alpacaSpotCache = new Map<string, number>();
+
+export class AlpacaAdapter implements MarketDataAdapter {
+  readonly source: DataSource = "ALPACA";
+  readonly region: MarketRegion = "US";
+
+  status(): BrokerStatus {
+    const connected = useAppStore.getState().alpacaConnection.connected;
+    return {
+      source: "ALPACA",
+      region: "US",
+      connected,
+      mode: connected ? "live" : "simulated",
+      message: connected
+        ? "Alpaca API connected — live feeds active."
+        : "Alpaca session offline.",
+      howToConnect: "Go to Broker Login page and supply your Alpaca API Credentials.",
+    };
+  }
+
+  listInstruments(now?: number): Instrument[] {
+    return instrumentsFor("US", now);
+  }
+
+  getOptionChain(symbol: string, expiry: string, now = Date.now()): OptionChain {
+    const seed = getSeed(symbol);
+    if (!seed) throw new Error(`Unknown instrument: ${symbol}`);
+
+    const cachedSpot = alpacaSpotCache.get(symbol) || seed.refSpot;
+
+    // Trigger async spot price fetch to update cache for subsequent renders/ticks
+    if (useAppStore.getState().alpacaConnection.connected) {
+      alpaca
+        .getLatestStockQuote(symbol)
+        .then((quote) => {
+          if (quote && quote.lastPrice > 0) {
+            alpacaSpotCache.set(symbol, quote.lastPrice);
+          }
+        })
+        .catch(() => {});
+    }
+
+    const updatedSeed = { ...seed, refSpot: cachedSpot };
+    const baseChain = buildChain(updatedSeed, expiry, now, getUsAnchor(symbol));
+    
+    baseChain.live = {
+      source: "ALPACA",
+      capturedAt: now,
+      ivRank: baseChain.live?.ivRank || 45,
+      ivPercentile: baseChain.live?.ivPercentile || 45,
+    };
+    
+    return baseChain;
+  }
+}

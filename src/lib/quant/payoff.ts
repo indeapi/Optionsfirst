@@ -14,6 +14,10 @@ export interface Leg {
   qty: number;
   /** Entry price per unit (option premium, or share price for EQ legs). */
   premium: number;
+  /** Implied volatility of this specific option leg, for BS valuation. */
+  iv?: number;
+  /** Expiry date of this option contract. */
+  expiry?: string;
 }
 
 export interface PayoffPoint {

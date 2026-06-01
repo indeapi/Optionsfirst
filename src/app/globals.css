@@ -101,7 +101,10 @@ body {
 
 @layer components {
   .card {
-    @apply rounded-xl border border-border bg-panel shadow-card;
+    @apply rounded-xl border border-border bg-panel shadow-card transition-all duration-200;
+  }
+  .card-glass {
+    @apply rounded-xl border border-border bg-panel/75 backdrop-blur-md shadow-card transition-all duration-200;
   }
   .card-pad {
     @apply p-4;
@@ -121,4 +124,39 @@ body {
   .focus-ring {
     @apply outline-none ring-brand/50 focus-visible:ring-2;
   }
+  .shadow-glow-brand {
+    box-shadow: 0 0 12px 2px hsl(var(--brand) / 0.12);
+  }
+  .shadow-glow-call {
+    box-shadow: 0 0 12px 2px hsl(var(--call) / 0.12);
+  }
+  .shadow-glow-put {
+    box-shadow: 0 0 12px 2px hsl(var(--put) / 0.12);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out forwards;
 }

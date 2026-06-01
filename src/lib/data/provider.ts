@@ -18,9 +18,11 @@ import { daysToExpiry } from "./instruments";
 import {
   IBKRAdapter,
   KiteAdapter,
+  AlpacaAdapter,
   type BrokerStatus,
   type MarketDataAdapter,
 } from "./adapter";
+import { useAppStore } from "@/lib/store/app";
 
 export interface MarketSnapshot {
   chain: OptionChain;
@@ -32,24 +34,34 @@ export interface MarketSnapshot {
 }
 
 class MarketDataProvider {
-  private adapters: Record<MarketRegion, MarketDataAdapter> = {
-    IN: new KiteAdapter(),
-    US: new IBKRAdapter(),
-  };
+  private inAdapter = new KiteAdapter();
+  private usIbkrAdapter = new IBKRAdapter();
+  private usAlpacaAdapter = new AlpacaAdapter();
+
+  private getAdapter(region: MarketRegion): MarketDataAdapter {
+    if (region === "IN") return this.inAdapter;
+    const useAlpaca = useAppStore.getState().alpacaConnection.connected;
+    return useAlpaca ? this.usAlpacaAdapter : this.usIbkrAdapter;
+  }
 
   brokerStatuses(): BrokerStatus[] {
-    return [this.adapters.IN.status(), this.adapters.US.status()];
+    const useAlpaca = useAppStore.getState().alpacaConnection.connected;
+    return [
+      this.inAdapter.status(),
+      useAlpaca ? this.usAlpacaAdapter.status() : this.usIbkrAdapter.status(),
+    ];
   }
 
   listInstruments(now = Date.now()): Instrument[] {
+    const useAlpaca = useAppStore.getState().alpacaConnection.connected;
     return [
-      ...this.adapters.IN.listInstruments(now),
-      ...this.adapters.US.listInstruments(now),
+      ...this.inAdapter.listInstruments(now),
+      ...(useAlpaca ? this.usAlpacaAdapter.listInstruments(now) : this.usIbkrAdapter.listInstruments(now)),
     ];
   }
 
   private regionOf(symbol: string, now: number): MarketRegion {
-    const inHit = this.adapters.IN
+    const inHit = this.inAdapter
       .listInstruments(now)
       .some((i) => i.symbol === symbol);
     return inHit ? "IN" : "US";
@@ -61,7 +73,8 @@ class MarketDataProvider {
 
   buildSnapshot(symbol: string, expiry: string, now = Date.now()): MarketSnapshot {
     const region = this.regionOf(symbol, now);
-    const chain = this.adapters[region].getOptionChain(symbol, expiry, now);
+    const adapter = this.getAdapter(region);
+    const chain = adapter.getOptionChain(symbol, expiry, now);
     const analytics = analyzeChain(chain);
     const dte = daysToExpiry(expiry, now);
     const condition = inferMarketCondition(chain, analytics, dte);

@@ -10,6 +10,7 @@ import {
   type LivePosition,
   type PositionMark,
 } from "@/lib/agents/monitor";
+import { useAppStore } from "@/lib/store/app";
 
 export interface MarketView {
   snapshot: MarketSnapshot | null;
@@ -62,7 +63,9 @@ export function useMarketData(
       if (posRef.current.key !== key) {
         posRef.current = { key, positions: buildSamplePositions(snapshot.chain) };
       }
-      const marks: PositionMark[] = posRef.current.positions.map((p) =>
+      const virtuals = useAppStore.getState().virtualHoldings.filter(p => p.symbol === symbol);
+      const allPositions = [...posRef.current.positions, ...virtuals];
+      const marks: PositionMark[] = allPositions.map((p) =>
         markToMarket(p, snapshot.chain),
       );
       const remittance = remittanceAlerts(now);

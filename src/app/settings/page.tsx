@@ -9,6 +9,8 @@ import { Panel, Segmented } from "@/components/ui/primitives";
 import { Icon } from "@/components/ui/Icon";
 import { BrandMark } from "@/components/shell/BrandMark";
 
+import Link from "next/link";
+
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
   const refreshMs = useAppStore((s) => s.refreshMs);
@@ -49,7 +51,16 @@ export default function SettingsPage() {
           </div>
         </Panel>
 
-        <Panel className="lg:col-span-2" eyebrow="Brokers" title="Market data connections">
+        <Panel
+          className="lg:col-span-2"
+          eyebrow="Brokers"
+          title="Market data connections"
+          right={
+            <Link href="/broker-login" className="inline-flex items-center gap-1 text-2xs font-semibold text-brand hover:underline">
+              Manage Accounts <Icon name="chevron-right" size={12} />
+            </Link>
+          }
+        >
           <div className="grid gap-2.5 sm:grid-cols-2">
             {statuses.map((s) => (
               <div key={s.source} className="rounded-lg border border-border bg-panel-2 p-3">

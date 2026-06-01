@@ -9,7 +9,7 @@
 export type MarketRegion = "IN" | "US";
 
 /** Upstream that produced a value. */
-export type DataSource = "IBKR" | "KITE" | "SIMULATED";
+export type DataSource = "IBKR" | "KITE" | "SIMULATED" | "ALPACA";
 
 /**
  * How fresh a value is, independent of who produced it.
