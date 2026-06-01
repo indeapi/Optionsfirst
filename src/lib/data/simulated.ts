@@ -180,19 +180,13 @@ export function buildChain(
   now = Date.now(),
   anchor?: IbkrUnderlying,
 ): OptionChain {
-  let spot: number;
-  let prevClose: number;
-  let baseIV: number;
-  if (anchor) {
-    spot = anchor.spot;
-    prevClose = anchor.priorClose;
-    baseIV = anchor.underlyingIV;
-  } else {
-    const walk = advanceSpot(seed, now);
-    spot = walk.spot;
-    prevClose = walk.prevClose;
-    baseIV = seed.baseIV;
-  }
+  // The spot always walks intraday so the terminal updates every tick. For
+  // anchored (real IBKR) US names the walk starts from the real captured price
+  // (the US seeds carry it) and IV/OI stay pinned to the real figures below.
+  const walk = advanceSpot(seed, now);
+  const spot = walk.spot;
+  const prevClose = walk.prevClose;
+  const baseIV = anchor ? anchor.underlyingIV : seed.baseIV;
   const wseed: InstrumentSeed = anchor ? { ...seed, baseIV } : seed;
   const dte = daysToExpiry(expiry, now);
   const t = Math.max(0.5 / 365, dte / 365);
@@ -208,13 +202,13 @@ export function buildChain(
   });
   if (anchor) scaleOIToReal(rows, anchor.callOI, anchor.putOI);
 
-  const spotChange = anchor ? anchor.change : spot - prevClose;
+  const spotChange = spot - prevClose;
   const chain: OptionChain = {
     instrument: { ...seed, expiries: [expiry] },
     expiry,
     spot,
     spotChange,
-    spotChangePct: anchor ? anchor.changePct : (spotChange / prevClose) * 100,
+    spotChangePct: (spotChange / prevClose) * 100,
     rows,
     freshness: buildFreshness(seed.region, now, anchor),
     atmStrike: atm,
@@ -249,9 +243,10 @@ function scaleOIToReal(rows: OptionChainRow[], callTotal: number, putTotal: numb
 }
 
 /**
- * Per-field provenance. Anchored (real IBKR) chains mark spot / IV / OI / PCR
- * as captured-real, prices/greeks/max-pain as computed-from-real, and only
- * bid-ask + per-strike volume as ★ modelled. Un-anchored chains are all ★.
+ * Per-field provenance. Anchored (real IBKR) chains keep IV / OI / PCR pinned
+ * to the real captured figures, derive greeks / max-pain from them, and let the
+ * intraday-moving fields (spot, prices, volume) be ★ simulated movement around
+ * the real reference. Un-anchored chains are all ★.
  */
 function buildFreshness(
   region: OptionChain["instrument"]["region"],
@@ -261,8 +256,8 @@ function buildFreshness(
   const fields: TrackedField[] = [
     "ltp", "bidAsk", "volume", "oi", "iv", "greeks", "spot", "pcr", "maxPain",
   ];
-  const captured = new Set<TrackedField>(["spot", "iv", "oi", "pcr"]);
-  const computed = new Set<TrackedField>(["ltp", "greeks", "maxPain"]);
+  const captured = new Set<TrackedField>(["iv", "oi", "pcr"]);
+  const computed = new Set<TrackedField>(["greeks", "maxPain"]);
   const out: OptionChain["freshness"] = {};
   for (const f of fields) {
     if (!anchor) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useMarket } from "@/components/providers/market";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { ExpiryPicker } from "@/components/shell/ExpiryPicker";
@@ -46,6 +46,22 @@ export default function StrategyBuilderPage() {
     setSpotShiftPct(0);
   }, [dte]);
 
+  // Seed a default ATM long straddle on first open so the payoff + technical
+  // chart are visible immediately (no blank canvas to confuse a new user).
+  const seededRef = useRef(false);
+  useEffect(() => {
+    if (seededRef.current || !snapshot || builderLegs.length > 0) return;
+    seededRef.current = true;
+    const c = snapshot.chain;
+    const row =
+      c.rows.find((r) => r.strike === c.atmStrike) ?? c.rows[Math.floor(c.rows.length / 2)];
+    if (!row) return;
+    setBuilderLegs([
+      { action: "buy", right: "CE", strike: row.strike, qty: 1, premium: row.call.ltp, iv: row.call.iv, expiry: c.expiry },
+      { action: "buy", right: "PE", strike: row.strike, qty: 1, premium: row.put.ltp, iv: row.put.iv, expiry: c.expiry },
+    ]);
+  }, [snapshot, builderLegs.length, setBuilderLegs]);
+
   if (loading || !snapshot) {
     return (
       <>
@@ -63,12 +79,12 @@ export default function StrategyBuilderPage() {
   const region = chain.instrument.region;
 
   // Quant Margin Engine Breakdown
-  const marginBreakdown = useMemo(() => {
+  const marginBreakdown = (() => {
     return calculateRequiredMargin(builderLegs, spot, lotSize);
-  }, [builderLegs, spot, lotSize]);
+  })();
 
   // Helios & Athena Strike Assistant
-  const optimalStrikes = useMemo(() => {
+  const optimalStrikes = (() => {
     if (!chain?.rows || chain.rows.length === 0) return null;
 
     const items = chain.rows.map((row) => {
@@ -117,7 +133,7 @@ export default function StrategyBuilderPage() {
         oi: recommendedPut.put.oi,
       },
     };
-  }, [chain]);
+  })();
 
   const applyRecommendedStrike = (type: "CE" | "PE", strike: number) => {
     const updated = builderLegs.map((leg) => {
@@ -268,7 +284,7 @@ export default function StrategyBuilderPage() {
   };
 
   // Compute portfolio greeks
-  const greeks = useMemo(() => {
+  const greeks = (() => {
     let totalDelta = 0;
     let totalGamma = 0;
     let totalTheta = 0;
@@ -299,16 +315,16 @@ export default function StrategyBuilderPage() {
     }
 
     return { delta: totalDelta, gamma: totalGamma, theta: totalTheta, vega: totalVega };
-  }, [builderLegs, spot, dte, daysPassed, spotShiftPct, lotSize, region]);
+  })();
 
   // Compute Payoffs
   // 1. Expiry payoff
-  const expiryPayoff = useMemo(() => {
+  const expiryPayoff = (() => {
     return buildPayoff(builderLegs, { spot, lotSize, span: 0.15 });
-  }, [builderLegs, spot, lotSize]);
+  })();
 
   // 2. Target date payoff (Black-Scholes revaluation at shifted spot & date)
-  const targetPayoff = useMemo(() => {
+  const targetPayoff = (() => {
     if (builderLegs.length === 0) return { points: [], currentPnl: 0 };
     const rfRate = region === "IN" ? 0.065 : 0.045;
     const span = 0.15;
@@ -354,7 +370,7 @@ export default function StrategyBuilderPage() {
     const currentPnl = valuation(currentSpotVal, daysPassed);
 
     return { points, currentPnl };
-  }, [builderLegs, spot, dte, daysPassed, spotShiftPct, lotSize, region]);
+  })();
 
   // Expiry stats
   const { maxProfit, maxLoss, breakevens, pop, netPremium, rewardRisk } = expiryPayoff;

@@ -2,13 +2,16 @@
 
 import {
   Activity,
+  ArrowDownLeft,
   ArrowLeftRight,
+  ArrowUpRight,
   BarChart3,
   Bell,
   Check,
   ChevronDown,
   ChevronRight,
   CircleDot,
+  CircleHelp,
   Clock,
   Gauge,
   Globe,
@@ -35,12 +38,16 @@ import {
   TriangleAlert,
   Wallet,
   Workflow,
+  X,
   type LucideIcon,
 } from "lucide-react";
 
 const REGISTRY: Record<string, LucideIcon> = {
   activity: Activity,
+  "alert-triangle": TriangleAlert,
+  "arrow-down-left": ArrowDownLeft,
   "arrow-left-right": ArrowLeftRight,
+  "arrow-up-right": ArrowUpRight,
   "bar-chart-3": BarChart3,
   bell: Bell,
   check: Check,
@@ -50,6 +57,7 @@ const REGISTRY: Record<string, LucideIcon> = {
   clock: Clock,
   gauge: Gauge,
   globe: Globe,
+  "help-circle": CircleHelp,
   info: Info,
   dashboard: LayoutDashboard,
   layers: Layers,
@@ -73,6 +81,7 @@ const REGISTRY: Record<string, LucideIcon> = {
   "triangle-alert": TriangleAlert,
   wallet: Wallet,
   workflow: Workflow,
+  x: X,
 };
 
 export function Icon({
