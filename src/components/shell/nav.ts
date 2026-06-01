@@ -18,6 +18,7 @@ export const NAV_SECTIONS: NavSection[] = [
     title: "Analyze",
     items: [
       { href: "/option-chain", label: "Option Chain", icon: "table", hint: "Chain + OI" },
+      { href: "/positioning", label: "Positioning", icon: "bar-chart-3", hint: "PCR · OI walls" },
       { href: "/scanners", label: "Scanners", icon: "search", hint: "Gainers / OI / spikes" },
       { href: "/volatility", label: "Volatility", icon: "gauge", hint: "IV rank & skew" },
       { href: "/premium-decay", label: "Premium Decay", icon: "activity", hint: "Theta & straddle" },
