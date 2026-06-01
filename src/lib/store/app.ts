@@ -65,6 +65,10 @@ interface AppState {
   // Virtual positions actions
   addVirtualPosition: (pos: LivePosition) => void;
   clearVirtualPositions: () => void;
+  /** Update the MTM-based stop / target (in account currency) for a strategy. */
+  updatePositionRisk: (id: string, risk: { target?: number; stop?: number }) => void;
+  /** Close (remove) an open strategy from the book. */
+  closeVirtualPosition: (id: string) => void;
 }
 
 const DEFAULT_BROKERS: Record<string, BrokerConnection> = {
@@ -158,4 +162,20 @@ export const useAppStore = create<AppState>((set) => ({
       virtualHoldings: [pos, ...state.virtualHoldings],
     })),
   clearVirtualPositions: () => set({ virtualHoldings: [] }),
+  updatePositionRisk: (id, risk) =>
+    set((state) => ({
+      virtualHoldings: state.virtualHoldings.map((p) =>
+        p.id === id
+          ? {
+              ...p,
+              ...(risk.target !== undefined ? { target: risk.target } : {}),
+              ...(risk.stop !== undefined ? { stop: risk.stop } : {}),
+            }
+          : p,
+      ),
+    })),
+  closeVirtualPosition: (id) =>
+    set((state) => ({
+      virtualHoldings: state.virtualHoldings.filter((p) => p.id !== id),
+    })),
 }));

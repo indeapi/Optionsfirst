@@ -9,6 +9,7 @@ export const NAV: NavItem[] = [
   { href: "/", label: "Dashboard", icon: "dashboard", hint: "Desk overview" },
   { href: "/option-chain", label: "Option Chain", icon: "table", hint: "Chain + OI" },
   { href: "/strategy-builder", label: "Strategy Builder", icon: "sliders", hint: "Build & price" },
+  { href: "/portfolio", label: "Portfolio", icon: "scale", hint: "Strategy-wise P&L" },
   { href: "/strategies", label: "Playbook", icon: "layers", hint: "Ranked playbook" },
   { href: "/backtesting", label: "Backtesting", icon: "bar-chart-3", hint: "Historical edge" },
   { href: "/broker-login", label: "Broker Login", icon: "wallet", hint: "Broker accounts" },
