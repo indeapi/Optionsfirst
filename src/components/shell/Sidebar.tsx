@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Icon } from "@/components/ui/Icon";
 import { BrandMark } from "./BrandMark";
-import { NAV } from "./nav";
+import { NAV, NAV_SECTIONS } from "./nav";
 
 function isActive(pathname: string, href: string): boolean {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -18,30 +18,32 @@ export function Sidebar() {
       <div className="flex h-14 items-center border-b border-border px-4">
         <BrandMark />
       </div>
-      <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">
-        {NAV.map((item) => {
-          const active = isActive(pathname, item.href);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "group flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors",
-                active
-                  ? "bg-brand/10 text-brand"
-                  : "text-fg-muted hover:bg-bg-sunken hover:text-fg",
-              )}
-            >
-              <Icon name={item.icon} size={17} strokeWidth={active ? 2.4 : 2} />
-              <span className="flex-1">{item.label}</span>
-              {item.hint ? (
-                <span className="text-2xs text-fg-subtle opacity-0 transition-opacity group-hover:opacity-100">
-                  {item.hint}
-                </span>
-              ) : null}
-            </Link>
-          );
-        })}
+      <nav className="flex-1 space-y-3 overflow-y-auto p-3">
+        {NAV_SECTIONS.map((section, si) => (
+          <div key={si} className="space-y-0.5">
+            {section.title ? (
+              <div className="px-3 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-fg-subtle">
+                {section.title}
+              </div>
+            ) : null}
+            {section.items.map((item) => {
+              const active = isActive(pathname, item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "group flex items-center gap-3 rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors",
+                    active ? "bg-brand/10 text-brand" : "text-fg-muted hover:bg-bg-sunken hover:text-fg",
+                  )}
+                >
+                  <Icon name={item.icon} size={16} strokeWidth={active ? 2.4 : 2} />
+                  <span className="flex-1">{item.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        ))}
       </nav>
       <div className="border-t border-border p-3">
         <div className="rounded-lg bg-bg-sunken px-3 py-2.5">
